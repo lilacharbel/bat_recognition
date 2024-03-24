@@ -2,7 +2,8 @@
 
 ## Dataset pre-process
 
-The dataset is handled using DVC to pull the raw and processed data. To pull the data, use the command:
+The dataset is handled using DVC.\
+To pull the data, use the command:
 `dvc pull data.dvc`
 
 1. Save raw videos at `data/raw/data/videos`.

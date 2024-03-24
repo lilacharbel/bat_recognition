@@ -59,7 +59,7 @@ if __name__ == "__main__":
     for video in videos:
 
         imgs_dir = f'{data_dir}/{video}/imgs'
-        no_bg_imgs_dir = f'{data_dir}/{video}/np_bg'
+        no_bg_imgs_dir = f'{data_dir}/{video}/no_bg'
 
         if not os.path.exists(no_bg_imgs_dir):
             os.makedirs(no_bg_imgs_dir, exist_ok=True)
