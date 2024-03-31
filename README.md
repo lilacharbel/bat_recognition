@@ -5,8 +5,8 @@
 ## Project Structure:
 
     └── bat_recognition/
-        ├── dataset/
-        │   ├── raw_dataset/
+        ├── data/
+        │   ├── raw_data/
         │   │   └── videos/
         │   │       ├── video1.mp4
         │   │       ├── video2.mp4
