@@ -50,3 +50,6 @@ The processed images will be saved at `data/processed_data/<video>/no_bg`.
 
 
 Note: If `-v` is not specified, the script will go through all the videos in the folder that have not been processed yet.
+
+## model
+https://github.com/chou141253/FGVC-HERBS/tree/master

@@ -1,20 +1,44 @@
 from torchvision import transforms, datasets
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Subset, Dataset
 import numpy as np
 
 
+class Sub_Dataset(Dataset):
+    def __init__(self, subset, transform=None):
+        self.subset = subset
+        self.transform = transform
+
+    def __getitem__(self, index):
+        x, y = self.subset[index]
+        if self.transform:
+            x = self.transform(x)
+        return x, y
+
+    def __len__(self):
+        return len(self.subset)
+
+
 class BatDataLoader:
-    def __init__(self, data_root, batch_size=256, resize=None):
-        self.data_root = data_root
-        self.batch_size = batch_size
+    def __init__(self, config):
+        self.config = config
+
+        self.data_root = config['data_root']
+        self.batch_size = config['batch_size']
+
         self.transform = transforms.Compose([
-            transforms.Resize(resize) if resize else transforms.Lambda(lambda x: x),
+            transforms.Resize(config['input_size']) if config.get('input_size', None) else transforms.Lambda(lambda x: x),
             transforms.ToTensor(),
         ])
-        self.train_loader, self.val_loader, self.test_loader = self.create_loaders()
+
+        self.transform_train = transforms.Compose([
+            transforms.Resize(config['input_size']),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        ])
 
     def create_loaders(self):
-        dataset = datasets.ImageFolder(root=self.data_root, transform=self.transform)
+        dataset = datasets.ImageFolder(root=self.data_root)
         bat_indices = {bat: [] for bat in dataset.class_to_idx.keys()}
 
         # Group indices by class
@@ -23,19 +47,20 @@ class BatDataLoader:
             bat_indices[class_name].append(idx)
 
         # Stratified split
+        np.random.seed(self.config['seed'])
         train_indices, val_indices, test_indices = [], [], []
         for indices in bat_indices.values():
             np.random.shuffle(indices)
-            n_train = int(len(indices) * 0.7)
-            n_val = int(len(indices) * 0.15)
+            n_train = int(len(indices) * self.config['train_size'])
+            n_val = int(len(indices) * self.config['val_size'])
             train_indices.extend(indices[:n_train])
             val_indices.extend(indices[n_train:n_train + n_val])
             test_indices.extend(indices[n_train + n_val:])
 
         # Create subsets for each dataset
-        train_dataset = Subset(dataset, train_indices)
-        val_dataset = Subset(dataset, val_indices)
-        test_dataset = Subset(dataset, test_indices)
+        train_dataset = Sub_Dataset(Subset(dataset, train_indices), transform=self.transform_train)
+        val_dataset = Sub_Dataset(Subset(dataset, val_indices), transform=self.transform)
+        test_dataset = Sub_Dataset(Subset(dataset, test_indices), transform=self.transform)
 
         # DataLoader for each subset
         train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
@@ -47,10 +72,23 @@ class BatDataLoader:
 
 # Example usage
 if __name__ == '__main__':
-    data_root = '../data/processed_data/'
-    bat_loader = BatDataLoader(data_root, batch_size=256)
+    config = {'data_root': '../data/training_data/',
+              'input_size': (200, 200),
+              'batch_size': 8,
+              'seed': 42,
+              'train_size': 0.7,
+              'val_size': 0.15,
+              }
+
+    bat_loader = BatDataLoader(config)
     train_loader, val_loader, test_loader = bat_loader.create_loaders()
 
+    import matplotlib.pyplot as plt
+    plt.figure()
     # Iterate over one batch to see the data
     for images, labels in train_loader:
         print(images.shape, labels)
+        plt.cla()
+        plt.imshow(images[0].permute(1, 2, 0))
+        plt.title(labels[0])
+        plt.show()

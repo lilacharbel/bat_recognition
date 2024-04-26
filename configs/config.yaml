@@ -1,0 +1,90 @@
+# experiment
+data_dir: ../data/gentex-datasets/face_keypoints
+training_name: heatmap2d_add_run_id
+wandb_tags: [heatmap2d, keypoints]
+
+n_epochs: 200
+batch_size: 8
+learning_rate: 0.0001
+clr: True
+clr_min_lr: 0.0002
+clr_max_lr: 0.002
+clr_cycle_epochs: 32
+
+# architecture
+model_output: heatmap2d
+normalize_coordinates: False
+backbone: efilite_b0
+input_shape: [128, 128, 1]
+png_resolution: [128, 128]
+decoder_hidden_layers: ""
+outer_prod_heatmap2d: False
+relu_max_value: None
+backbone_include_last_conv2d: False
+backbone_num_blocks: 6
+backbone_skip_connection: False
+backbone_block_repeats: 1
+conv_filters: 32
+num_upsampling_layers: 3
+
+# loss
+loss_func: weighted_mse_loss
+pos_heatmap_loss_weight: 0.8
+jaw_kps_loss_weight: 1
+
+# labels
+heatmap_resolution: 64
+heatmap_gaussian_sigma: 3.0
+heatmap_gaussian_sigma_jaw: 3.0
+heatmap_gaussian_peak: 1.
+
+# parse output
+find_peak: argmax # argmax/ interpolation
+normalize_heatmap: False
+
+# checkpoint
+checkpoint_metric: pos_peak_distance
+checkpoint_metric_goal: minimize
+
+# dataset
+seed: 223
+test_size: 5000
+val_size: 5000
+camera: ['zulu', 'Gemini', 'Zulu']
+num_kps: 41
+include_invisible: False
+clahe: False
+
+# training phase augmentations
+fliplr: True
+scale: True
+max_scale: 0.1
+rotate: True
+rotate_max_deg: 45
+cutout: True
+cutout_freq: 0.2
+cutout_fill_values: gaussian
+invert: False
+translate: True
+translate_max_x: 20
+translate_max_y: 40
+guardian_augmentations: True
+aug_agn: True
+aug_blur: True
+aug_emboss: True
+aug_contrast: True
+aug_pixel_mul_add_gamma: True
+aug_dropout: True
+
+## augmentations params
+  # blur
+aug_blur_gauss_std_min: 0
+aug_blur_gauss_std_max: 1
+aug_blur_avg_kernel_min: 1
+aug_blur_avg_kernel_max: 3
+aug_blur_med_kernel_min: 1
+aug_blur_med_kernel_max: 5
+
+  # contrast
+aug_contrast_normalization_min: 0.75
+aug_contrast_normalization_max: 1.50
