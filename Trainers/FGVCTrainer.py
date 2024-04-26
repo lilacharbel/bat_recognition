@@ -26,7 +26,7 @@ def suppression(target: torch.Tensor, threshold: torch.Tensor, temperature: floa
     # target = 1 - target
     return target
 
-class Trainer:
+class FGVCTrainer:
 
     def __init__(self, config):
 

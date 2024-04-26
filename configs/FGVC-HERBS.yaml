@@ -1,0 +1,52 @@
+# experiment
+data_root: ../data/training_data/
+training_name: FGVC-HERBS
+trainer: FGVCTrainer
+
+# training
+n_epochs: 80
+batch_size: 8
+learning_rate: 1e-4
+optimizer: Adam
+base_lr: 0.00005
+max_lr: 0.0005
+step_size_up: 15
+scheduler_mode: triangular
+weight_decay: 0.0003
+use_amp: True
+
+lambda_b0: 1.375
+lambda_b: 0.3
+lambda_s: 0.0
+lambda_n: 5.0
+lambda_c: 1.0
+update_freq: 4
+temperature: 64
+eval_freq: 10
+
+# loss
+loss: CrossEntropyLoss
+
+# architecture
+model_name: swin-t
+use_fpn: True
+fpn_size: 1536
+use_selection: True
+num_classes: 96
+num_selects:
+  layer1: 256
+  layer2: 128
+  layer3: 64
+  layer4: 32
+use_combiner: True
+pretrained: ~
+
+# checkpoint
+checkpoint_metric: val_acc
+checkpoint_metric_goal: maximize
+
+# dataset
+input_size: [384, 384]
+seed: 42
+train_size: 0.7
+val_size: 0.15

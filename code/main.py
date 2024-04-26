@@ -1,7 +1,8 @@
 import os
 import yaml
 from argparse import ArgumentParser
-from Trainer import Trainer
+import Trainers as Trainers
+import importlib
 
 if __name__ == '__main__':
 
@@ -33,7 +34,7 @@ if __name__ == '__main__':
         print('---------------')
 
         # train
-        trainer = Trainer(config)
+        trainer = getattr(importlib.import_module(f"Trainers.{config['trainer']}"), config['trainer'])(config)
         trainer.train()
 
     if args.partition == 'test':
@@ -47,5 +48,6 @@ if __name__ == '__main__':
         with open(os.path.join(folder_dir, model_dir, 'config.yml')) as f:
             config = yaml.load(f, Loader=yaml.FullLoader)
 
-        trainer = FashionMNISTTrainer(config)
+        trainer = getattr(importlib.import_module(f"Trainers.{config['trainer']}"), config['trainer'])(config)
+
         trainer.test()
