@@ -90,7 +90,7 @@ class FGVCTrainer:
         if epoch_performance > self.best_ckpt_metric:
             torch.save(self.model.state_dict(), os.path.join(self.config['experiment_dir'], 'best_checkpoint.pt'))
             self.best_ckpt_metric = epoch_performance
-            print(f'best checkpoint saved with {self.config["ckpt_metric"]} of {epoch_performance}')
+            print(f'best checkpoint saved with {self.config["checkpoint_metric"]} of {epoch_performance}')
 
     def load_checkpoint(self, version='latest'):
         self.model.load_state_dict(torch.load(os.path.join(self.config['experiment_dir'], f'{version}_checkpoint.pt')))
@@ -218,11 +218,11 @@ class FGVCTrainer:
                 self.optimizer.step()
             self.optimizer.zero_grad()
 
-        # self.model.eval()
-        # with torch.no_grad():
-        #     acc, eval_name, accs = evaluate(self.config, self.model, self.train_loader)
-        #     self.update_epoch_train_metrics(outs, labels)
-        #     self.epoch_train_metrics['train_loss'].append(loss.cpu().detach().numpy())
+        self.model.eval()
+        with torch.no_grad():
+            outs = self.model(imgs)['comb_outs']
+            self.update_epoch_train_metrics(outs, labels)
+            self.epoch_train_metrics['train_loss'].append(loss.cpu().detach().numpy())
 
     def val_step(self, batch):
 
@@ -233,12 +233,12 @@ class FGVCTrainer:
             imgs = imgs.to(self.device)
             labels = labels.to(self.device)
 
-            output = self.model(imgs)
+            output = self.model(imgs)['comb_outs']
 
-        loss = self.loss_func(output, labels)
+        # loss = self.loss_func(output, labels)
 
         self.update_epoch_val_metrics(output, labels)
-        self.epoch_val_metrics['val_loss'].append(loss.cpu().detach().numpy())
+        self.epoch_val_metrics['val_loss'].append(0)
 
     def test_step(self, batch):
 
@@ -263,34 +263,33 @@ class FGVCTrainer:
             # train
             for batch_in, batch in enumerate(tqdm(self.train_loader, desc=f'train epoch {epoch}', leave=True)):
                 self.train_step(batch, batch_in)
-                if batch_in == 3:
-                    break
 
             # val
-            self.model.eval()
-            with torch.no_grad():
-                acc, eval_name, accs = evaluate(self.config, self.model, self.val_loader, self.device)
-                self.val_metrics['val_acc'].append(acc)
-                # self.epoch_train_metrics['train_loss'].append(loss.cpu().detach().numpy())
-            # for batch in tqdm(self.val_loader, desc=f'validation epoch {epoch}', leave=True):
-            #     self.val_step(batch)
+            # todo: use their eval function
+            # self.model.eval()
+            # with torch.no_grad():
+            #     acc, eval_name, accs = evaluate(self.config, self.model, self.val_loader, self.device)
+            #     self.val_metrics['val_acc'].append(acc)
+
+            for batch_in, batch in enumerate(tqdm(self.val_loader, desc=f'validation epoch {epoch}', leave=True)):
+                self.val_step(batch)
 
             self.compute_metrics()
 
             print('-------------------')
-            print(f'epoch: {epoch}/{self.config["num_epochs"]}')
-            # for k, v in self.epoch_train_metrics.items():
-            #     self.train_metrics[k].append(v)
-            #     print(f'{k}: {v}')
-            #
-            # print('---')
+            print(f'epoch: {epoch}/{self.config["n_epochs"]}')
+            for k, v in self.epoch_train_metrics.items():
+                self.train_metrics[k].append(v)
+                print(f'{k}: {v}')
+
+            print('---')
             for k, v in self.epoch_val_metrics.items():
                 self.val_metrics[k].append(v)
                 print(f'{k}: {v}')
             print('---')
 
             # save checkpoint
-            epoch_performance = self.epoch_val_metrics[f'val_{self.config["ckpt_metric"]}']
+            epoch_performance = self.epoch_val_metrics[f'val_{self.config["checkpoint_metric"]}']
             self.save_checkpoint(epoch_performance)
             print('-------------------')
 

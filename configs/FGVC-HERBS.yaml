@@ -42,7 +42,7 @@ use_combiner: True
 pretrained: ~
 
 # checkpoint
-checkpoint_metric: val_acc
+checkpoint_metric: acc
 checkpoint_metric_goal: maximize
 
 # dataset
