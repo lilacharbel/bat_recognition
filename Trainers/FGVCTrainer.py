@@ -8,13 +8,15 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, accuracy_score
 import seaborn as sns
 from BatDataLoader import BatDataLoader
-from models.builder import MODEL_GETTER
+from models.FGVC_HERBS.builder import MODEL_GETTER
 import torch.nn.functional as F
-
-import sys
-sys.path.append('../FGVC-HERBS')
-from eval import evaluate
 import munch
+
+# import sys
+# sys.path.append('../FGVC-HERBS')
+
+import warnings
+warnings.filterwarnings("ignore")
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
 
