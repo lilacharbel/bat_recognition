@@ -63,9 +63,9 @@ class BatDataLoader:
         test_dataset = Sub_Dataset(Subset(dataset, test_indices), transform=self.transform)
 
         # DataLoader for each subset
-        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
-        val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False)
-        test_loader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False)
+        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, drop_last=True)
+        val_loader = DataLoader(val_dataset, batch_size=self.batch_size, shuffle=False, drop_last=False)
+        test_loader = DataLoader(test_dataset, batch_size=self.batch_size, shuffle=False, drop_last=False)
 
         return train_loader, val_loader, test_loader
 

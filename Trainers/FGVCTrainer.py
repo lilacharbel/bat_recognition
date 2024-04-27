@@ -16,6 +16,9 @@ sys.path.append('../FGVC-HERBS')
 from eval import evaluate
 import munch
 
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+
+
 def suppression(target: torch.Tensor, threshold: torch.Tensor, temperature: float = 2):
     """
     target size: [B, S, C]
