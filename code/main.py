@@ -7,14 +7,17 @@ import importlib
 if __name__ == '__main__':
 
     parser = ArgumentParser()
-    parser.add_argument('--config_file', type=str, default='../configs/FGVC-HERBS.yaml', help='yaml file to initialize params')
+    parser.add_argument('--config_file', type=str, default='../configs/resnet50.yaml', help='yaml file to initialize params')
     parser.add_argument('--partition', type=str, default='train')
+    parser.add_argument('--experiment', default=None)
     args = parser.parse_args()
 
     with open(os.path.join(args.config_file)) as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
     if args.partition == 'train':
+        os.makedirs('../experiments', exist_ok=True)
+
         all_experiments = os.listdir('../experiments')
         all_experiments = [exp for exp in all_experiments if exp.startswith(config['training_name'])]
 
@@ -39,13 +42,13 @@ if __name__ == '__main__':
 
     if args.partition == 'test':
         print('---------------')
-        print(model_name)
+        print(args.experiment)
         print('---------------')
 
-        model_dir = os.path.join(folder_dir, 'experiments', model_name)
+        model_dir = os.path.join('../experiments', args.experiment)
 
         # load config file
-        with open(os.path.join(folder_dir, model_dir, 'config.yml')) as f:
+        with open(os.path.join(model_dir, 'config.yml')) as f:
             config = yaml.load(f, Loader=yaml.FullLoader)
 
         trainer = getattr(importlib.import_module(f"Trainers.{config['trainer']}"), config['trainer'])(config)
