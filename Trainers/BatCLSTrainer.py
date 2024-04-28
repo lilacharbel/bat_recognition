@@ -161,7 +161,7 @@ class BatCLSTrainer:
             loss = self.loss_func(output, labels)
 
         self.update_epoch_val_metrics(output, labels)
-        self.epoch_val_metrics['val_loss'].append(loss)
+        self.epoch_val_metrics['val_loss'].append(loss.cpu().detach().numpy())
 
     def test_step(self, batch):
 
