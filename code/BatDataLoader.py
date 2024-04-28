@@ -25,16 +25,22 @@ class BatDataLoader:
         self.data_root = config['data_root']
         self.batch_size = config['batch_size']
 
+        normalize = transforms.Normalize(mean=tuple(config['mean']), std=tuple(config['std']))
+
         self.transform = transforms.Compose([
-            transforms.Resize(config['input_size']) if config.get('input_size', None) else transforms.Lambda(lambda x: x),
+            transforms.Resize(config['input_size']),
+            transforms.RandomRotation(degrees=config['rotation_degrees']),
+            transforms.RandomAdjustSharpness(sharpness_factor=config['sharpness_factor']),
+            transforms.ColorJitter(brightness=config['brightness'], contrast=config['contrast'], saturation=config['saturation'], hue=config['hue']),
             transforms.ToTensor(),
+            normalize,
         ])
 
         self.transform_train = transforms.Compose([
             transforms.Resize(config['input_size']),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            normalize,
         ])
 
     def create_loaders(self):
@@ -72,21 +78,18 @@ class BatDataLoader:
 
 # Example usage
 if __name__ == '__main__':
-    config = {'data_root': '../data/training_data/',
-              'input_size': (200, 200),
-              'batch_size': 8,
-              'seed': 42,
-              'train_size': 0.7,
-              'val_size': 0.15,
-              }
+    import yaml
+    import matplotlib.pyplot as plt
+
+    with open('../configs/resnet50.yaml', 'r') as f:
+        config = yaml.safe_load(f)
 
     bat_loader = BatDataLoader(config)
     train_loader, val_loader, test_loader = bat_loader.create_loaders()
 
-    import matplotlib.pyplot as plt
     plt.figure()
     # Iterate over one batch to see the data
-    for images, labels in train_loader:
+    for images, labels in test_loader:
         print(images.shape, labels)
         plt.cla()
         plt.imshow(images[0].permute(1, 2, 0))

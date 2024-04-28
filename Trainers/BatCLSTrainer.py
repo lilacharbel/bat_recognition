@@ -41,7 +41,6 @@ class BatCLSTrainer:
 
         self.load_model()
 
-
         bat_loader = BatDataLoader(config)
         self.train_loader, self.val_loader, self.test_loader = bat_loader.create_loaders()
 

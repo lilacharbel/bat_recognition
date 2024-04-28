@@ -31,3 +31,13 @@ input_size: [224, 224]
 seed: 42
 train_size: 0.7
 val_size: 0.15
+mean: [0.5, 0.5, 0.5]
+std: [0.5, 0.5, 0.5]
+
+# augmentations
+rotation_degrees: 15
+sharpness_factor: 2
+brightness: 0.2
+contrast: 0.2
+saturation: 0.2
+hue: 0.1
