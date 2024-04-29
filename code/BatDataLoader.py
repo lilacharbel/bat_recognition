@@ -25,7 +25,7 @@ class BatDataLoader:
         self.data_root = config['data_root']
         self.batch_size = config['batch_size']
 
-        normalize = transforms.Normalize(mean=tuple(config['mean']), std=tuple(config['std']))
+        normalize = transforms.Normalize(mean=tuple(config['mean']), std=tuple(config['std'])) if not config['mean'] == 'None' else None
 
         self.transform = transforms.Compose([
             transforms.Resize(config['input_size']),
@@ -33,14 +33,14 @@ class BatDataLoader:
             transforms.RandomAdjustSharpness(sharpness_factor=config['sharpness_factor']),
             transforms.ColorJitter(brightness=config['brightness'], contrast=config['contrast'], saturation=config['saturation'], hue=config['hue']),
             transforms.ToTensor(),
-            normalize,
+            normalize if normalize is not None else lambda x: x,
         ])
 
         self.transform_train = transforms.Compose([
             transforms.Resize(config['input_size']),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            normalize,
+            normalize if normalize is not None else lambda x: x,
         ])
 
     def create_loaders(self):

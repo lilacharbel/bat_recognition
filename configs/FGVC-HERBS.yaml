@@ -50,3 +50,13 @@ input_size: [384, 384]
 seed: 42
 train_size: 0.7
 val_size: 0.15
+mean: None
+std: None
+
+# augmentations
+rotation_degrees: 15
+sharpness_factor: 2
+brightness: 0.2
+contrast: 0.2
+saturation: 0.2
+hue: 0.1
