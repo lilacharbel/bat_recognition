@@ -232,13 +232,17 @@ def build_swintransformer(pretrained: bool = True,
                           use_combiner: bool = True,
                           comb_proj_size: Union[int, None] = None):
     """
-    This function is to building swin transformer. timm swin-transformer + torch.fx.proxy.Proxy 
+    This function is to building swin transformer. timm swin-transformer + torch.fx.proxy.Proxy
     could cause error, so we set return_nodes to None and change swin-transformer model script to
     return features directly.
     Please check 'timm/models/swin_transformer.py' line 541 to see how to change model if your costom
     model also fail at create_feature_extractor or get_graph_node_names step.
     """
 
+    import sys
+    import os
+    sys.path.insert(0, os.path.join(os.getcwd(), '../', 'models/FGVC_HERBS'))
+    print(sys.path)  # Check the list of paths where Python is looking for modules
     import timm
 
     if num_selects is None:
