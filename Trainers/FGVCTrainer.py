@@ -11,6 +11,7 @@ from BatDataLoader import BatDataLoader
 from models.FGVC_HERBS.builder import MODEL_GETTER
 import torch.nn.functional as F
 import munch
+import pickle
 
 # import sys
 # sys.path.append('../FGVC-HERBS')
@@ -49,6 +50,7 @@ class FGVCTrainer:
 
         bat_loader = BatDataLoader(config)
         self.train_loader, self.val_loader, self.test_loader = bat_loader.create_loaders()
+        self.class_weights = bat_loader.class_weights.to(self.device) if self.config.get('class_weights', False) else torch.ones(96, device=self.device)
 
         self.init_optimizer()
 
@@ -161,7 +163,7 @@ class FGVCTrainer:
                     if self.config['lambda_s'] != 0:
                         S = outs[name].size(1)
                         logit = outs[name].view(-1, self.config['num_classes']).contiguous()
-                        loss_s = nn.CrossEntropyLoss()(logit, labels.unsqueeze(1).repeat(1, S).flatten(0))
+                        loss_s = nn.CrossEntropyLoss(weight=self.class_weights)(logit, labels.unsqueeze(1).repeat(1, S).flatten(0))
                         loss += self.config['lambda_s'] * loss_s
                     else:
                         loss_s = 0.0
@@ -186,7 +188,7 @@ class FGVCTrainer:
                         raise ValueError("FPN not use here.")
                     if self.config['lambda_b'] != 0:
                         ### here using 'layer1'~'layer4' is default setting, you can change to your own
-                        loss_b = nn.CrossEntropyLoss()(outs[name].mean(1), labels)
+                        loss_b = nn.CrossEntropyLoss(weight=self.class_weights)(outs[name].mean(1), labels)
                         loss += self.config['lambda_b'] * loss_b
                     else:
                         loss_b = 0.0
@@ -348,6 +350,10 @@ class FGVCTrainer:
         acc = accuracy_score(all_labels, all_preds)
 
         print(f'test accuracy: {acc}')
+
+        # save results to pickle file
+        with open(os.path.join(self.config['experiment_dir'], 'results.pkl'), 'wb') as file:
+            pickle.dump([all_preds, all_labels], file)
 
         # confusion matrix
         plt.figure(figsize=(20, 20))

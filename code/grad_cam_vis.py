@@ -17,7 +17,10 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def get_grad_cam_visualization(input_tensor, model):
 
-    target_layers = [model.layer4]
+    try:
+        target_layers = [model.layer4]
+    except:
+        target_layers = [model.layers]
 
     cam = GradCAM(model=model, target_layers=target_layers)
 

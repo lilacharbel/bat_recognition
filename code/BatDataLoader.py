@@ -1,7 +1,7 @@
 from torchvision import transforms, datasets
 from torch.utils.data import DataLoader, Subset, Dataset
 import numpy as np
-
+import torch
 
 class Sub_Dataset(Dataset):
     def __init__(self, subset, transform=None):
@@ -25,7 +25,7 @@ class BatDataLoader:
         self.data_root = config['data_root']
         self.batch_size = config['batch_size']
 
-        normalize = transforms.Normalize(mean=tuple(config['mean']), std=tuple(config['std'])) if not config['mean'] == 'None' else None
+        normalize = transforms.Normalize(mean=tuple(config['mean']), std=tuple(config['std'])) if not config.get('mean', 'None') == 'None' else None
 
         self.transform = transforms.Compose([
             transforms.Resize(config['input_size']),
@@ -51,6 +51,11 @@ class BatDataLoader:
         for idx, (_, label) in enumerate(dataset.imgs):
             class_name = dataset.classes[label]
             bat_indices[class_name].append(idx)
+
+        # calculate panelty
+        class_counts = [len(bat_indices[class_name]) for class_name in bat_indices.keys()]
+        total_samples = sum(class_counts)
+        self.class_weights = torch.tensor([total_samples / c for c in class_counts])
 
         # Stratified split
         np.random.seed(self.config['seed'])

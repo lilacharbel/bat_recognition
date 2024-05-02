@@ -54,6 +54,10 @@ class BatCLSTrainer:
 
         self.epoch = 0
 
+        if self.config.get('use_amp', False):
+            self.scaler = torch.cuda.amp.GradScaler()
+            self.amp_context = torch.cuda.amp.autocast
+
 
     def load_model(self):
 
@@ -135,18 +139,30 @@ class BatCLSTrainer:
         imgs = imgs.to(self.device)
         labels = labels.to(self.device)
 
-        outputs = self.model(imgs)
-        loss = self.loss_func(outputs, labels)
+        with self.amp_context():
 
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
+            outputs = self.model(imgs)
+            loss = self.loss_func(outputs, labels)
 
-        self.model.eval()
-        with torch.no_grad():
-            outs = self.model(imgs)
-            self.update_epoch_train_metrics(outs, labels)
-            self.epoch_train_metrics['train_loss'].append(loss.cpu().detach().numpy())
+            if self.config.get('use_amp', False):
+                self.scaler.scale(loss).backward()
+                self.scaler.step(self.optimizer)
+                self.scaler.update()  # next batch
+            else:
+                loss.backward()
+                self.optimizer.step()
+            self.optimizer.zero_grad()
+
+
+            # self.optimizer.zero_grad()
+            # loss.backward()
+            # self.optimizer.step()
+
+            self.model.eval()
+            with torch.no_grad():
+                outs = self.model(imgs)
+                self.update_epoch_train_metrics(outs, labels)
+                self.epoch_train_metrics['train_loss'].append(loss.cpu().detach().numpy())
 
     def val_step(self, batch):
 
