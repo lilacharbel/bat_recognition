@@ -43,12 +43,13 @@ class BatCLSTrainer:
 
         bat_loader = BatDataLoader(config)
         self.train_loader, self.val_loader, self.test_loader = bat_loader.create_loaders()
+        self.class_weights = bat_loader.class_weights.to(self.device) if self.config.get('class_weights', False) else torch.ones(96, device=self.device)
 
         self.init_optimizer()
 
         self.init_metrics()
 
-        self.loss_func = getattr(nn, config['loss'])()
+        self.loss_func = getattr(nn, config['loss'])(weight=self.class_weights)
 
         self.best_ckpt_metric = np.inf if self.config['checkpoint_metric_goal'] == 'minimize' else -np.inf
 
