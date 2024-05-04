@@ -1,0 +1,6 @@
+outs:
+- md5: a166200216b0cb68166069e637acdfbd.dir
+  size: 6476039345
+  nfiles: 11217
+  hash: md5
+  path: training_data_cropped
