@@ -82,20 +82,16 @@ if __name__ == "__main__":
         with torch.no_grad():
             preds = model(inputs)
         for i in range(inputs.shape[0]):
-            if batch_idx> 40: #i + batch_idx * 8 in [3, 16]:
-                input_tensor = inputs[i:i+1, ...]
-                label = targets[i:i+1].item()
-                pred = torch.argmax(torch.softmax(preds[i:i+1], dim=1), dim=1).item()
+            input_tensor = inputs[i:i+1, ...]
+            label = targets[i:i+1].item()
+            pred = torch.argmax(torch.softmax(preds[i:i+1], dim=1), dim=1).item()
 
-                if label == pred:
+            if label == pred:
 
-                    visualization = get_grad_cam_visualization(input_tensor, model)
-                    grad_cam_figure = plt.figure()
-                    plt.imshow(visualization)
-                    plt.title(label)
-                    grad_cam_figure.savefig(os.path.join(gc_dir, f'grad_cam_{i+batch_idx*8}.png'))
-                # plt.figure()
-                # plt.imshow(input_tensor[0].permute([1, 2, 0]))
-                # plt.savefig(f'../data/figures/gradcam_{i+batch_idx*8}.png')
-        # if batch_idx == 4:
-        #     break
+                visualization = get_grad_cam_visualization(input_tensor, model)
+                grad_cam_figure = plt.figure()
+                plt.imshow(visualization)
+                plt.title(label)
+                grad_cam_figure.savefig(os.path.join(gc_dir, f'grad_cam_{i+batch_idx*8}.png'))
+
+        break
