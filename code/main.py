@@ -7,7 +7,7 @@ import importlib
 if __name__ == '__main__':
 
     parser = ArgumentParser()
-    parser.add_argument('--config_file', type=str, default='../configs/resnet50.yaml', help='yaml file to initialize params')
+    parser.add_argument('--config_file', type=str, default='../configs/swint.yaml', help='yaml file to initialize params')
     parser.add_argument('--partition', type=str, default='train')
     parser.add_argument('--experiment', default=None)
     args = parser.parse_args()

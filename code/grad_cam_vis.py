@@ -15,14 +15,25 @@ import timm
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
+def reshape_transform(tensor, height=12, width=12):
+    result = tensor.reshape(tensor.size(0),
+        height, width, tensor.size(3))
+
+    # Bring the channels to the first dimension,
+    # like in CNNs.
+    result = result.transpose(2, 3).transpose(1, 2)
+    return result
+
+
 def get_grad_cam_visualization(input_tensor, model):
 
     try:
         target_layers = [model.layer4]
-    except:
-        target_layers = [model.layers]
+        cam = GradCAM(model=model, target_layers=target_layers)
 
-    cam = GradCAM(model=model, target_layers=target_layers)
+    except:
+        target_layers = [model.layers[-1].blocks[-1].norm1]
+        cam = GradCAM(model=model, target_layers=target_layers, reshape_transform=reshape_transform)
 
     grayscale_cam = cam(input_tensor=input_tensor, targets=None, aug_smooth=True)
 
@@ -67,14 +78,24 @@ if __name__ == "__main__":
     model.eval()
 
     for batch_idx, (inputs, targets) in enumerate(test_loader):
+
+        with torch.no_grad():
+            preds = model(inputs)
         for i in range(inputs.shape[0]):
-            input_tensor = inputs[i:i+1, ...]
-            label = targets[i:i+1].item()
+            if batch_idx> 40: #i + batch_idx * 8 in [3, 16]:
+                input_tensor = inputs[i:i+1, ...]
+                label = targets[i:i+1].item()
+                pred = torch.argmax(torch.softmax(preds[i:i+1], dim=1), dim=1).item()
 
-            visualization = get_grad_cam_visualization(input_tensor, model)
-            grad_cam_figure = plt.figure()
-            plt.imshow(visualization)
-            plt.title(label)
-            grad_cam_figure.savefig(os.path.join(gc_dir, f'grad_cam_{i}.png'))
+                if label == pred:
 
-        break
+                    visualization = get_grad_cam_visualization(input_tensor, model)
+                    grad_cam_figure = plt.figure()
+                    plt.imshow(visualization)
+                    plt.title(label)
+                    grad_cam_figure.savefig(os.path.join(gc_dir, f'grad_cam_{i+batch_idx*8}.png'))
+                # plt.figure()
+                # plt.imshow(input_tensor[0].permute([1, 2, 0]))
+                # plt.savefig(f'../data/figures/gradcam_{i+batch_idx*8}.png')
+        # if batch_idx == 4:
+        #     break

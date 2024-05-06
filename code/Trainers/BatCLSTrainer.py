@@ -5,21 +5,17 @@ import numpy as np
 import os
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from sklearn.metrics import confusion_matrix, accuracy_score
+from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
 import seaborn as sns
 from BatDataLoader import BatDataLoader
-from models.FGVC_HERBS.builder import MODEL_GETTER
-import torch.nn.functional as F
 import munch
-import pickle
+import timm
+import losses
 
-# import sys
-# sys.path.append('../FGVC-HERBS')
 
-import warnings
-warnings.filterwarnings("ignore")
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+os.environ['TORCH_USE_CUDA_DSA'] = '1'
 
 
 def suppression(target: torch.Tensor, threshold: torch.Tensor, temperature: float = 2):
@@ -32,21 +28,15 @@ def suppression(target: torch.Tensor, threshold: torch.Tensor, temperature: floa
     # target = 1 - target
     return target
 
-class FGVCTrainer:
+
+class BatCLSTrainer:
 
     def __init__(self, config):
 
         self.config = munch.Munch(config)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        self.model = MODEL_GETTER[config['model_name']](
-            use_fpn=config['use_fpn'],
-            fpn_size=config['fpn_size'],
-            use_selection=config['use_selection'],
-            num_classes=config['num_classes'],
-            num_selects=config['num_selects'],
-            use_combiner=config['use_combiner'],
-        ).to(self.device) # about return_nodes, we use our default setting
+        self.load_model()
 
         bat_loader = BatDataLoader(config)
         self.train_loader, self.val_loader, self.test_loader = bat_loader.create_loaders()
@@ -56,16 +46,30 @@ class FGVCTrainer:
 
         self.init_metrics()
 
-        self.loss_func = getattr(nn, config['loss']) #nn.CrossEntropyLoss()
+        self.init_loss()
 
         self.best_ckpt_metric = np.inf if self.config['checkpoint_metric_goal'] == 'minimize' else -np.inf
 
         self.epoch = 0
 
-        # todo
-        if self.config['use_amp']:
+        if self.config.get('use_amp', False):
             self.scaler = torch.cuda.amp.GradScaler()
             self.amp_context = torch.cuda.amp.autocast
+
+
+    def load_model(self):
+
+        try:
+            self.model = timm.create_model(model_name=self.config['model_name'], pretrained=self.config['pretrained'],
+                                           num_classes=self.config['num_classes']).to(self.device)
+        except:
+            print('No pretrained model')
+
+    def init_loss(self):
+        try:
+            self.loss_func = getattr(nn, self.config['loss'])(weight=self.class_weights)
+        except:
+            self.loss_func = getattr(losses, self.config['loss'])(weight=self.class_weights)
 
     def init_optimizer(self):
         self.optimizer = getattr(torch.optim, self.config['optimizer'])
@@ -131,103 +135,39 @@ class FGVCTrainer:
         for k, v in self.epoch_val_metrics.items():
             self.epoch_val_metrics[k] = []
 
-    def train_step(self, batch, batch_id):
+    def train_step(self, batch):
         self.model.train()
 
         imgs, labels = batch
         imgs = imgs.to(self.device)
         labels = labels.to(self.device)
 
-        with self.amp_context():
+        if self.config.get('use_amp', False):
+            with self.amp_context():
 
-            outs = self.model(imgs)
-
-            loss = 0.
-            for name in outs:
-
-                if "FPN1_" in name:
-                    if self.config['lambda_b0'] != 0:
-                        aux_name = name.replace("FPN1_", "")
-                        gt_score_map = outs[aux_name].detach()
-                        thres = torch.Tensor(self.model.selector.thresholds[aux_name])
-                        gt_score_map = suppression(gt_score_map, thres, self.temperature)
-                        logit = F.log_softmax(outs[name] / self.temperature, dim=-1)
-                        loss_b0 = nn.KLDivLoss()(logit, gt_score_map)
-                        loss += self.config['lambda_b0'] * loss_b0
-                    else:
-                        loss_b0 = 0.0
-
-                elif "select_" in name:
-                    if not self.config['use_selection']:
-                        raise ValueError("Selector not use here.")
-                    if self.config['lambda_s'] != 0:
-                        S = outs[name].size(1)
-                        logit = outs[name].view(-1, self.config['num_classes']).contiguous()
-                        loss_s = nn.CrossEntropyLoss(weight=self.class_weights)(logit, labels.unsqueeze(1).repeat(1, S).flatten(0))
-                        loss += self.config['lambda_s'] * loss_s
-                    else:
-                        loss_s = 0.0
-
-                elif "drop_" in name:
-                    if not self.config['use_selection']:
-                        raise ValueError("Selector not use here.")
-
-                    if self.config['lambda_n'] != 0:
-                        S = outs[name].size(1)
-                        logit = outs[name].view(-1, self.config['num_classes']).contiguous()
-                        n_preds = nn.Tanh()(logit)
-                        labels_0 = torch.zeros([self.config['batch_size'] * S, self.config['num_classes']]) - 1
-                        labels_0 = labels_0.to(self.device)
-                        loss_n = nn.MSELoss()(n_preds, labels_0)
-                        loss += self.config['lambda_n'] * loss_n
-                    else:
-                        loss_n = 0.0
-
-                elif "layer" in name:
-                    if not self.config['use_fpn']:
-                        raise ValueError("FPN not use here.")
-                    if self.config['lambda_b'] != 0:
-                        ### here using 'layer1'~'layer4' is default setting, you can change to your own
-                        loss_b = nn.CrossEntropyLoss(weight=self.class_weights)(outs[name].mean(1), labels)
-                        loss += self.config['lambda_b'] * loss_b
-                    else:
-                        loss_b = 0.0
-
-                elif "comb_outs" in name:
-                    if not self.config['use_combiner']:
-                        raise ValueError("Combiner not use here.")
-
-                    if self.config['lambda_c'] != 0:
-                        loss_c = nn.CrossEntropyLoss()(outs[name], labels)
-                        loss += self.config['lambda_c'] * loss_c
-
-                elif "ori_out" in name:
-                    loss_ori = F.cross_entropy(outs[name], labels)
-                    loss += loss_ori
-
-            if batch_id < len(self.train_loader) - self.n_left_batchs:
-                loss /= self.config['update_freq']
-            else:
-                loss /= self.n_left_batchs
-
-        """ = = = = calculate gradient = = = = """
-        if self.config['use_amp']:
-            self.scaler.scale(loss).backward()
-        else:
-            loss.backward()
-
-        """ = = = = update model = = = = """
-        if (batch_id + 1) % self.config['update_freq'] == 0 or (batch_id + 1) == len(self.train_loader):
-            if self.config['use_amp']:
+                outputs = self.model(imgs)
+                loss = self.loss_func(outputs, labels)
+                self.scaler.scale(loss).backward()
                 self.scaler.step(self.optimizer)
                 self.scaler.update()  # next batch
-            else:
-                self.optimizer.step()
             self.optimizer.zero_grad()
+
+
+        else:
+            outputs = self.model(imgs)
+            loss = self.loss_func(outputs, labels)
+            loss.backward()
+            self.optimizer.step()
+            self.optimizer.zero_grad()
+
+
+        # self.optimizer.zero_grad()
+        # loss.backward()
+        # self.optimizer.step()
 
         self.model.eval()
         with torch.no_grad():
-            outs = self.model(imgs)['comb_outs']
+            outs = self.model(imgs)
             self.update_epoch_train_metrics(outs, labels)
             self.epoch_train_metrics['train_loss'].append(loss.cpu().detach().numpy())
 
@@ -240,12 +180,11 @@ class FGVCTrainer:
             imgs = imgs.to(self.device)
             labels = labels.to(self.device)
 
-            output = self.model(imgs)['comb_outs']
-
-        # loss = self.loss_func(output, labels)
+            output = self.model(imgs)
+            loss = self.loss_func(output, labels)
 
         self.update_epoch_val_metrics(output, labels)
-        self.epoch_val_metrics['val_loss'].append(0)
+        self.epoch_val_metrics['val_loss'].append(loss.cpu().detach().numpy())
 
     def test_step(self, batch):
 
@@ -256,7 +195,7 @@ class FGVCTrainer:
             imgs = imgs.to(self.device)
             labels = labels.to(self.device)
 
-            output = self.model(imgs)['comb_outs']
+            output = self.model(imgs)
 
             return output, labels
 
@@ -264,21 +203,12 @@ class FGVCTrainer:
 
         for epoch in range(self.config['n_epochs']):
 
-            self.temperature = 0.5 ** (epoch // 10) * self.config['temperature']
-            self.n_left_batchs = len(self.train_loader) % self.config['update_freq']
-
             # train
-            for batch_in, batch in enumerate(tqdm(self.train_loader, desc=f'train epoch {epoch}', leave=True)):
-                self.train_step(batch, batch_in)
+            for batch in tqdm(self.train_loader, desc=f'train epoch {epoch}', leave=True):
+                self.train_step(batch)
 
             # val
-            # todo: use their eval function
-            # self.model.eval()
-            # with torch.no_grad():
-            #     acc, eval_name, accs = evaluate(self.config, self.model, self.val_loader, self.device)
-            #     self.val_metrics['val_acc'].append(acc)
-
-            for batch_in, batch in enumerate(tqdm(self.val_loader, desc=f'validation epoch {epoch}', leave=True)):
+            for batch in tqdm(self.val_loader, desc=f'validation epoch {epoch}', leave=True):
                 self.val_step(batch)
 
             self.compute_metrics()
@@ -348,18 +278,22 @@ class FGVCTrainer:
         all_preds = all_preds.cpu().detach().numpy()
 
         acc = accuracy_score(all_labels, all_preds)
+        precision = precision_score(all_labels, all_preds, average='macro')
+        recall = recall_score(all_labels, all_preds, average='macro')
+        f1 = f1_score(all_labels, all_preds, average='macro')
 
-        print(f'test accuracy: {acc}')
-
-        # save results to pickle file
-        with open(os.path.join(self.config['experiment_dir'], 'results.pkl'), 'wb') as file:
-            pickle.dump([all_preds, all_labels], file)
+        print(f'results:\n'
+              f' accuracy: {acc}\n'
+              f'precision: {precision}\n'
+              f'recall: {recall}\n'
+              f'f1: {f1}')
 
         # confusion matrix
         plt.figure(figsize=(20, 20))
         cm = confusion_matrix(all_labels, all_preds)
         sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=np.unique(all_labels), yticklabels=np.unique(all_labels))
-        plt.title('{} \nConfusion Matrix - {} \nAccuracy: {:.2f}%'.format(self.config['training_name'], 'test', acc * 100))
+        plt.title('{} \nConfusion Matrix - {} \nAccuracy: {:.2f}%\nPrecision: {:.2f}%\nRecall: {:.2f}%\nF1: {:.2f}%'
+                  .format(self.config['training_name'], 'test', acc * 100, precision * 100, recall * 100, f1 * 100))
         plt.xlabel('Predicted')
         plt.ylabel('True')
         plt.savefig(os.path.join(test_plot_dir, f'confusion_matrix.png'))

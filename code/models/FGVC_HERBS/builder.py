@@ -241,8 +241,7 @@ def build_swintransformer(pretrained: bool = True,
 
     import sys
     import os
-    sys.path.insert(0, os.path.join(os.getcwd(), '../', 'models/FGVC_HERBS'))
-    print(sys.path)  # Check the list of paths where Python is looking for modules
+    sys.path.insert(0, os.path.join(os.getcwd(), '../', 'code/models/FGVC_HERBS'))
     import timm
 
     if num_selects is None:

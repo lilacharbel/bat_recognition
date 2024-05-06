@@ -29,9 +29,6 @@ class BatDataLoader:
 
         self.transform = transforms.Compose([
             transforms.Resize(config['input_size']),
-            transforms.RandomRotation(degrees=config['rotation_degrees']),
-            transforms.RandomAdjustSharpness(sharpness_factor=config['sharpness_factor']),
-            transforms.ColorJitter(brightness=config['brightness'], contrast=config['contrast'], saturation=config['saturation'], hue=config['hue']),
             transforms.ToTensor(),
             normalize if normalize is not None else lambda x: x,
         ])
@@ -39,6 +36,10 @@ class BatDataLoader:
         self.transform_train = transforms.Compose([
             transforms.Resize(config['input_size']),
             transforms.RandomHorizontalFlip(),
+            transforms.RandomRotation(degrees=config['rotation_degrees']),
+            transforms.RandomAdjustSharpness(sharpness_factor=config['sharpness_factor']),
+            transforms.ColorJitter(brightness=config['brightness'], contrast=config['contrast'],
+                                   saturation=config['saturation'], hue=config['hue']),
             transforms.ToTensor(),
             normalize if normalize is not None else lambda x: x,
         ])
