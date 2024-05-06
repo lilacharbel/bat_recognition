@@ -11,12 +11,16 @@
         │   │       ├── video1.mp4
         │   │       ├── video2.mp4
         │   │       └── ...
-        │   └── processed_dataset/
-        │       └── video1/
-        │           ├── imgs/
-        │           ├── bboxes/
-        │           ├── bbox_smooth/
-        │           └── np_bg/
+        │   ├── processed_dataset/
+        │   │    └── video1/
+        │   │       ├── imgs/
+        │   │       ├── bboxes/
+        │   │       ├── bbox_smooth/
+        │   │       └── np_bg/
+        │   ├── training_data/
+        │   └── training_data_bg/
+        ├── code/
+        ├── configs/
         └── RMBG-1.4 (see Dataset pre-process section 4)
 
 ## Dataset Pre-Process
@@ -51,5 +55,8 @@ The processed images will be saved at `data/processed_data/<video>/no_bg`.
 
 Note: If `-v` is not specified, the script will go through all the videos in the folder that have not been processed yet.
 
-## model
-https://github.com/chou141253/FGVC-HERBS/tree/master
+5. To create the final dataset for training, run
+> python dataset/prepare_data_for_train.py
+
+## Train
+> python code/main.py --partition train --config_file <config_name>
