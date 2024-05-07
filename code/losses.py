@@ -20,7 +20,7 @@ class FocalLoss(nn.Module):
         alpha = self.alpha.gather(0, targets)
 
         # Calculate the focal loss
-        loss = alpha * (1 - prob) ** self.gamma * log_prob
+        loss = - alpha * ((1 - prob) ** self.gamma) * log_prob
 
         if self.reduction == 'mean':
             return loss.mean()
